@@ -6,8 +6,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -15,16 +13,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .authorizeHttpRequests(authorizeRequests ->
-                        authorizeRequests
-                                .requestMatchers("/", "/login**", "/webjars/**", "/error**", "/api/webhook/**").permitAll()
-                                .anyRequest().authenticated()
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/", "/error", "/webjars/**", "/api/webhook/**").permitAll()
+                        .anyRequest().authenticated()
                 )
-                .oauth2Login(withDefaults());
+                // Configure OAuth2 Login
+                .oauth2Login(oauth2 -> oauth2
+                        .defaultSuccessUrl("/", true)
+                )
+                
+                .logout(logout -> logout
+                        .logoutSuccessUrl("/")
+                        .permitAll()
+                );
 
         http.csrf(csrf ->
                 csrf.ignoringRequestMatchers("/api/webhook/**")
         );
+
         return http.build();
     }
 }

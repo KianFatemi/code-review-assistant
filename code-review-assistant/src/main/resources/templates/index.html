@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automated Code Review Assistant</title>
-    <!-- Include Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,19 +26,16 @@
             Streamline your code review process and improve code quality with automated analysis.
         </p>
 
-        <!-- This block will be displayed ONLY if the user is authenticated -->
         <div th:if="${username}" class="space-y-6">
             <p class="text-xl">
                 Welcome, <span class="font-semibold text-indigo-600" th:text="${username}"></span>!
             </p>
             <p>You are successfully logged in. You can now configure repositories for analysis.</p>
-            <!-- We will add a link to the dashboard later -->
             <a href="/logout" class="inline-block bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
                 Logout
             </a>
         </div>
 
-        <!-- This block will be displayed ONLY if the user is NOT authenticated -->
         <div th:unless="${username}">
             <p class="text-lg mb-6">Please log in to continue.</p>
             <a href="/oauth2/authorization/github" class="inline-flex items-center bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-lg transition duration-300 text-lg">
