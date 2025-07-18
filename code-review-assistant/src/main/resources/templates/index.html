@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Code Review Assistant</title>
+    <!-- Include Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+<div class="min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 md:p-12 text-center">
+
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            Automated Code Review Assistant
+        </h1>
+        <p class="text-gray-600 mb-8">
+            Streamline your code review process and improve code quality with automated analysis.
+        </p>
+
+        <!-- This block will be displayed ONLY if the user is authenticated -->
+        <div th:if="${username}" class="space-y-6">
+            <p class="text-xl">
+                Welcome, <span class="font-semibold text-indigo-600" th:text="${username}"></span>!
+            </p>
+            <p>You are successfully logged in. You can now configure repositories for analysis.</p>
+            <!-- We will add a link to the dashboard later -->
+            <a href="/logout" class="inline-block bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                Logout
+            </a>
+        </div>
+
+        <!-- This block will be displayed ONLY if the user is NOT authenticated -->
+        <div th:unless="${username}">
+            <p class="text-lg mb-6">Please log in to continue.</p>
+            <a href="/oauth2/authorization/github" class="inline-flex items-center bg-gray-800 hover:bg-gray-900 text-white font-bold py-3 px-6 rounded-lg transition duration-300 text-lg">
+                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.168 6.839 9.49.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.06.069-.06 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.031-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.378.203 2.398.1 2.65.64.7 1.03 1.595 1.03 2.688 0 3.848-2.338 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.001 10.001 0 0022 12c0-5.523-4.477-10-10-10z" clip-rule="evenodd" />
+                </svg>
+                Login with GitHub
+            </a>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>
