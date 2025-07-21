@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+
 
 @Service
 public class GitHubService {
@@ -44,7 +44,7 @@ public class GitHubService {
 
             List<org.kohsuke.github.GHEvent> events = Arrays.asList(
                     org.kohsuke.github.GHEvent.PUSH,
-                    GHEvent.PULL_REQUEST
+                    org.kohsuke.github.GHEvent.PULL_REQUEST
             );
 
             Map<String, String> config = Map.of(
@@ -58,6 +58,25 @@ public class GitHubService {
         } catch (IOException e) {
             logger.error("Could not create webhook for repository: {}", repoName, e);
             return null;
+        }
+    }
+
+    public List<GHRepository> getUserRepositories() {
+        try {
+            List<GHRepository> repos =  github.getMyself().listRepositories(100).toList();
+            // Sort by updated date
+            repos.sort((r1, r2) -> {
+                try {
+                    return r2.getUpdatedAt().compareTo(r1.getUpdatedAt()); 
+                } catch (IOException e) {
+                    return 0; // treat as equal if dates can't be retrieved
+                }
+            });
+            return repos;
+
+        } catch (IOException e) {
+            logger.error("Could not fetch user repositories", e);
+            return Collections.emptyList();
         }
     }
 }
