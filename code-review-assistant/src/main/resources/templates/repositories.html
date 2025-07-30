@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configure Repositories</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<!-- Header -->
+<header class="bg-white shadow-sm">
+    <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-900">Code Review Assistant</h1>
+        <div th:if="${username}">
+            <span class="text-gray-600" th:text="'Logged in as ' + ${username}"></span>
+            <a href="/logout" class="ml-4 text-indigo-600 hover:text-indigo-800">Logout</a>
+        </div>
+    </div>
+</header>
+
+<!-- Main Content -->
+<main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="px-4 py-6 sm:px-0">
+        <div class="bg-white shadow-xl rounded-lg overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Your Repositories</h2>
+                <p class="text-gray-600 mt-1">Select a repository to enable automated code analysis.</p>
+            </div>
+            <ul class="divide-y divide-gray-200">
+                <!-- Loop through each repository -->
+                <li th:each="repo : ${repos}" class="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+                    <div>
+                        <p class="text-lg font-medium text-indigo-600" th:text="${repo.fullName}"></p>
+                        <p class="text-sm text-gray-500" th:text="${repo.description}"></p>
+                    </div>
+                    <div>
+                        <!-- Form to enable/disable analysis -->
+                        <form th:action="@{/repositories/configure}" method="post">
+                            <input type="hidden" name="repoName" th:value="${repo.fullName}" />
+
+                            <!-- Check if the repo is already configured -->
+                            <button th:if="${configuredRepos.contains(repo.fullName)}" type="submit"
+                                    class="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                    disabled>
+                                Configured (Disable coming soon)
+                            </button>
+                            <button th:unless="${configuredRepos.contains(repo.fullName)}" type="submit"
+                                    class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Enable Analysis
+                            </button>
+                        </form>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>

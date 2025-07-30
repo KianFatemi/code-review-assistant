@@ -29,6 +29,9 @@
         <div th:if="${username}" class="space-y-6">
             <p class="text-xl">
                 Welcome, <span class="font-semibold text-indigo-600" th:text="${username}"></span>!
+                <a href="/repositories" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    Configure Repositories
+                </a>
             </p>
             <p>You are successfully logged in. You can now configure repositories for analysis.</p>
             <a href="/logout" class="inline-block bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
