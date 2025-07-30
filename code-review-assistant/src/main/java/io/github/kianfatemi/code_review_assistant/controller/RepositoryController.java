@@ -4,6 +4,8 @@ import io.github.kianfatemi.code_review_assistant.model.RepositoryConfig;
 import io.github.kianfatemi.code_review_assistant.service.GitHubService;
 import io.github.kianfatemi.code_review_assistant.repository.RepositoryConfigRepository;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.kohsuke.github.GHHook;
 import org.kohsuke.github.GHRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +24,9 @@ import java.util.stream.Collectors;
 @Controller
 public class RepositoryController {
     private static final Logger logger = LoggerFactory.getLogger(RepositoryController.class);
+
+    @Value("${app.base-url}")
+    private String appBaseurl;
 
     @Autowired
     private GitHubService githubService;
@@ -49,25 +54,38 @@ public class RepositoryController {
         return "repositories";
     }
 
-    @PostMapping("/repositories/configue")
+    @PostMapping("/repositories/configure")
     public String configureRepository(@RequestParam String repoName, @AuthenticationPrincipal OAuth2User user) {
         if (user == null) {
             return "redirect:/";
         }
 
-        logger.info("User '{}' requested to configure repository: {}", user.getAttribute("login"), repoName);
+        String githubLogin = user.getAttribute("login");
+        logger.info("User '{}' requested to configure repository: {}", githubLogin, repoName);
 
         repoConfigRepository.findByRepositoryName(repoName).ifPresentOrElse(
-                config -> logger.info("Repository {} is already configured. Toggling status in a future step.", repoName),
+                config -> logger.warn("Repository {} is already configured. No action taken.", repoName),
                 () -> {
-                    RepositoryConfig newConfig = new RepositoryConfig();
-                    newConfig.setRepositoryName(repoName);
-                    newConfig.setActive(true);
-                    newConfig.setConfiguredByUserId(user.getAttribute("login"));
-                    repoConfigRepository.save(newConfig);
-                    logger.info("Saved new configuration for repository: {}", repoName);
+                    String webhookUrl = appBaseurl + "/api/webhook/github";
+                    logger.info("Attempting to create webhook for {} with URL: {}", repoName, webhookUrl);
+
+                    GHHook hook = githubService.createWebhook(repoName, webhookUrl);
+
+                    if (hook != null) {
+                        RepositoryConfig newConfig = new RepositoryConfig();
+                        newConfig.setRepositoryName(repoName);
+                        newConfig.setActive(true);
+                        newConfig.setConfiguredByUserId(githubLogin);
+                        newConfig.setInstallationId(hook.getId());
+
+                        repoConfigRepository.save(newConfig);
+                        logger.info("Successfully created webhook and saved configuration for repository: {}", repoName);
+                    } else {
+                        logger.error("Failed to create webhook for repository: {}. Configuration not saved.", repoName);
+                    }
                 }
         );
+
         return "redirect:/repositories";
     }
 }
