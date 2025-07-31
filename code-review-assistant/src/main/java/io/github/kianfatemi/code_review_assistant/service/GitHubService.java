@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 
@@ -68,6 +70,19 @@ public class GitHubService {
         } catch (IOException e) {
             logger.error("Could not fetch user repositories", e);
             return Collections.emptyList();
+        }
+    }
+
+    public String getFileContent(String repoName, String filePath, String commitSha) {
+        try {
+            GHRepository repo = github.getRepository(repoName);
+            GHContent content = repo.getFileContent(filePath, commitSha);
+            try (InputStream is = content.read()) {
+                return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            logger.error("Failed to get content for file '{}' in repo '{}'", filePath, repoName, e);
+            return null;
         }
     }
 }
