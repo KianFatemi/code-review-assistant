@@ -8,29 +8,48 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 
+@Service
 public class AnalysisService {
-    public static final Logger logger = LoggerFactory.getLogger(AnalysisService.class);
+
+    private static final Logger logger = LoggerFactory.getLogger(AnalysisService.class);
 
     @Autowired
     private GitHubService gitHubService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+     // Analyzes a push event from a GitHub webhook.
     public void analyzePushEvent(String payload) {
         try {
             JsonNode rootNode = objectMapper.readTree(payload);
+
             String repoName = rootNode.path("repository").path("full_name").asText();
             String afterCommitSha = rootNode.path("after").asText();
 
             logger.info("Analyzing push to repository '{}' at commit '{}'", repoName, afterCommitSha);
 
             JsonNode commits = rootNode.path("commits");
+            if (commits.isMissingNode() || !commits.isArray()) {
+                logger.warn("Webhook payload does not contain a 'commits' array. Skipping analysis.");
+                return;
+            }
+
+            logger.info("Found {} commit(s) in the push event.", commits.size());
 
             for (JsonNode commit : commits) {
+                // Analyze added files
                 commit.path("added").forEach(fileNode -> {
+                    String filePath = fileNode.asText();
+                    if (filePath.endsWith(".java")) {
+                        analyzeFile(repoName, filePath, afterCommitSha);
+                    }
+                });
+
+                commit.path("modified").forEach(fileNode -> {
                     String filePath = fileNode.asText();
                     if (filePath.endsWith(".java")) {
                         analyzeFile(repoName, filePath, afterCommitSha);
@@ -50,14 +69,13 @@ public class AnalysisService {
             logger.error("Could not retrieve content for file: {}", filePath);
             return;
         }
-
         CompilationUnit cu = StaticJavaParser.parse(fileContent);
 
         cu.findAll(FieldDeclaration.class).forEach(field -> {
             if (field.isPublic() && field.isStatic() && !field.isFinal()) {
                 int line = field.getRange().map(r -> r.begin.line).orElse(-1);
                 logger.warn("VIOLATION in {}: Line {}: Public static field '{}' should be final.",
-                    filePath, line, field.getVariable(0).getNameAsString());
+                        filePath, line, field.getVariable(0).getNameAsString());
             }
         });
     }
