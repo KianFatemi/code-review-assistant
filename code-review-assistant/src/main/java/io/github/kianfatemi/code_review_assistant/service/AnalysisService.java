@@ -5,12 +5,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.FieldDeclaration;
+import io.github.kianfatemi.code_review_assistant.model.AnalysisResult;
+import io.github.kianfatemi.code_review_assistant.repository.AnalysisResultRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Service
 public class AnalysisService {
@@ -18,9 +21,14 @@ public class AnalysisService {
     private static final Logger logger = LoggerFactory.getLogger(AnalysisService.class);
 
     @Autowired
-    private GitHubService gitHubService;
-
+    private final GitHubService gitHubService;
+    private final AnalysisResultRepository analysisResultRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public AnalysisService(GitHubService gitHubService, AnalysisResultRepository analysisResultRepository) {
+        this.gitHubService = gitHubService;
+        this.analysisResultRepository = analysisResultRepository;
+    }
 
      // Analyzes a push event from a GitHub webhook.
     public void analyzePushEvent(String payload) {
@@ -74,8 +82,21 @@ public class AnalysisService {
         cu.findAll(FieldDeclaration.class).forEach(field -> {
             if (field.isPublic() && field.isStatic() && !field.isFinal()) {
                 int line = field.getRange().map(r -> r.begin.line).orElse(-1);
+                String message = String.format("Public static field '%s' should be final.", field.getVariable(0).getNameAsString());
                 logger.warn("VIOLATION in {}: Line {}: Public static field '{}' should be final.",
                         filePath, line, field.getVariable(0).getNameAsString());
+
+                AnalysisResult result = new AnalysisResult();
+                result.setRepositoryName(repoName);
+                result.setFilePath(filePath);
+                result.setLineNumber(line);
+                result.setCommitSha(commitSha);
+                result.setRuleId("PUBLIC_STATIC_NON_FINAL");
+                result.setMessage(message);
+                result.setDetectedAt(LocalDateTime.now());
+
+                analysisResultRepository.save(result);
+                logger.info("Saved analysis result to database.");
             }
         });
     }
