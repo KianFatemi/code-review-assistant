@@ -38,7 +38,12 @@
                         <p class="text-lg font-medium text-indigo-600" th:text="${repo.fullName}"></p>
                         <p class="text-sm text-gray-500" th:text="${repo.description}"></p>
                     </div>
-                    <div>
+                    <div class="flex items-center space-x-4">
+                        <a th:if="${configuredRepos.contains(repo.fullName)}"
+                           th:href="@{/results(repoName=${repo.fullName})}"
+                           class="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-green-600">
+                            View Results
+                        </a>
                         <!-- Form to enable/disable analysis -->
                         <form th:action="@{/repositories/configure}" method="post">
                             <input type="hidden" name="repoName" th:value="${repo.fullName}" />
