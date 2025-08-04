@@ -28,10 +28,12 @@ public class AnalysisService {
     private final GitHubService gitHubService;
     private final AnalysisResultRepository analysisResultRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final AIService aiService;
 
-    public AnalysisService(GitHubService gitHubService, AnalysisResultRepository analysisResultRepository) {
+    public AnalysisService(GitHubService gitHubService, AnalysisResultRepository analysisResultRepository, AIService aiService) {
         this.gitHubService = gitHubService;
         this.analysisResultRepository = analysisResultRepository;
+        this.aiService = aiService;
     }
 
     public void analyzePullRequestEvent(String payload) {
@@ -49,6 +51,14 @@ public class AnalysisService {
             String commitSha = prNode.path("head").path("sha").asText();
 
             logger.info("Analyzing PR #{} in repository '{}' at commit '{}'", prNumber, repoName, commitSha);
+
+            String diff = gitHubService.getPullRequestDiff(repoName, prNumber);
+            if (diff != null && !diff.isEmpty()) {
+                logger.info("Sending PR diff to AI service for high-level feedback.");
+                String aiFeedback = aiService.getAIFeedback(diff);
+                String finalComment = "### AI-Powered Code Review\n\n" + aiFeedback;
+                gitHubService.postGeneralPullRequestComment(repoName, prNumber, finalComment);
+            }
 
             GHRepository repo = gitHubService.github.getRepository(repoName);
             GHPullRequest pr = repo.getPullRequest(prNumber);

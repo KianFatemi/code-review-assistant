@@ -98,4 +98,35 @@ public class GitHubService {
             logger.error("Failed to post comment to PR #{} in repository {}", prNumber, repoName, e);
         }
     }
+
+    public void postGeneralPullRequestComment(String repoName, int prNumber, String body) {
+        try {
+            GHRepository repo = github.getRepository(repoName);
+            GHPullRequest pr = repo.getPullRequest(prNumber);
+            pr.comment(body);
+            logger.info("Successfully posted general comment to PR #{} in repository {}", prNumber, repoName);
+        } catch (IOException e) {
+            logger.error("Failed to post general comment to PR #{} in repository {}", prNumber, repoName, e);
+        }
+    }
+
+    public String getPullRequestDiff(String repoName, int prNumber) {
+        try {
+            GHRepository repo = github.getRepository(repoName);
+            GHPullRequest pr = repo.getPullRequest(prNumber);
+            StringBuilder diffBuilder = new StringBuilder();
+            for (GHPullRequestFileDetail file : pr.listFiles()) {
+                diffBuilder.append("diff --git a/").append(file.getFilename()).append(" b/").append(file.getFilename()).append("\n");
+                diffBuilder.append("--- a/").append(file.getFilename()).append("\n");
+                diffBuilder.append("+++ b/").append(file.getFilename()).append("\n");
+                diffBuilder.append(file.getPatch()).append("\n");
+            }
+
+            return diffBuilder.toString();
+
+        } catch (IOException e) {
+            logger.error("Failed to get diff for PR #{} in repository {}", prNumber, repoName, e);
+            return null;
+        }
+    }
 }
