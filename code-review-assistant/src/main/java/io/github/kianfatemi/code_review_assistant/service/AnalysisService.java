@@ -7,6 +7,8 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import io.github.kianfatemi.code_review_assistant.model.AnalysisResult;
 import io.github.kianfatemi.code_review_assistant.repository.AnalysisResultRepository;
+import org.kohsuke.github.GHPullRequest;
+import org.kohsuke.github.GHRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class AnalysisService {
@@ -30,52 +34,84 @@ public class AnalysisService {
         this.analysisResultRepository = analysisResultRepository;
     }
 
-     // Analyzes a push event from a GitHub webhook.
-    public void analyzePushEvent(String payload) {
+    public void analyzePullRequestEvent(String payload) {
         try {
             JsonNode rootNode = objectMapper.readTree(payload);
+            String action = rootNode.path("action").asText();
 
-            String repoName = rootNode.path("repository").path("full_name").asText();
-            String afterCommitSha = rootNode.path("after").asText();
-
-            logger.info("Analyzing push to repository '{}' at commit '{}'", repoName, afterCommitSha);
-
-            JsonNode commits = rootNode.path("commits");
-            if (commits.isMissingNode() || !commits.isArray()) {
-                logger.warn("Webhook payload does not contain a 'commits' array. Skipping analysis.");
+            if (!"opened".equals(action) && !"synchronize".equals(action)) {
+                logger.info("Ignoring PR event with action: {}", action);
                 return;
             }
+            JsonNode prNode = rootNode.path("pull_request");
+            String repoName = rootNode.path("repository").path("full_name").asText();
+            int prNumber = prNode.path("number").asInt();
+            String commitSha = prNode.path("head").path("sha").asText();
 
-            logger.info("Found {} commit(s) in the push event.", commits.size());
+            logger.info("Analyzing PR #{} in repository '{}' at commit '{}'", prNumber, repoName, commitSha);
 
-            for (JsonNode commit : commits) {
-                // Analyze added files
-                commit.path("added").forEach(fileNode -> {
-                    String filePath = fileNode.asText();
-                    if (filePath.endsWith(".java")) {
-                        analyzeFile(repoName, filePath, afterCommitSha);
-                    }
-                });
+            GHRepository repo = gitHubService.github.getRepository(repoName);
+            GHPullRequest pr = repo.getPullRequest(prNumber);
 
-                commit.path("modified").forEach(fileNode -> {
-                    String filePath = fileNode.asText();
-                    if (filePath.endsWith(".java")) {
-                        analyzeFile(repoName, filePath, afterCommitSha);
-                    }
-                });
-            }
+            pr.listFiles().forEach(file -> {
+                String filePath = file.getFilename();
+                if (!filePath.endsWith(".java")) {
+                    return;
+                }
+                //find all violations
+                List<AnalysisResult> violations = findViolationsInFile(repoName, filePath, commitSha);
+
+                //post a comment for each violation found
+                for (AnalysisResult violation : violations) {
+                    gitHubService.postPullRequestComment(
+                            repoName,
+                            prNumber,
+                            commitSha,
+                            filePath,
+                            violation.getLineNumber(),
+                            "**Code Review Assistant** " + violation.getMessage()
+                    );
+                }
+            });
         } catch (IOException e) {
-            logger.error("Failed to parse webhook payload", e);
+            logger.error("Failed to parse pull request event payload", e);
         }
     }
 
-    private void analyzeFile(String repoName, String filePath, String commitSha) {
+    private void processFile(String repoName, String filePath, String commitSha) {
+        if (!filePath.endsWith(".java")) return;
+
+        List<AnalysisResult> results = findViolationsInFile(repoName, filePath, commitSha);
+        results.forEach(analysisResultRepository::save);
+        logger.info("Saved {} analysis results to the database for file {}", results.size(), filePath);
+    }
+
+     // Analyzes a push event from a GitHub webhook.
+     public void analyzePushEvent(String payload) {
+         try {
+             JsonNode rootNode = objectMapper.readTree(payload);
+             String repoName = rootNode.path("repository").path("full_name").asText();
+             String afterCommitSha = rootNode.path("after").asText();
+
+             logger.info("Analyzing push to repository '{}' at commit '{}'", repoName, afterCommitSha);
+
+             rootNode.path("commits").forEach(commit -> {
+                 commit.path("modified").forEach(fileNode -> processFile(repoName, fileNode.asText(), afterCommitSha));
+                 commit.path("added").forEach(fileNode -> processFile(repoName, fileNode.asText(), afterCommitSha));
+             });
+         } catch (IOException e) {
+             logger.error("Failed to parse push event payload", e);
+         }
+     }
+
+    private List<AnalysisResult> findViolationsInFile(String repoName, String filePath, String commitSha) {
         logger.info("Analyzing file: {}", filePath);
+        List<AnalysisResult> results = new ArrayList<>();
         String fileContent = gitHubService.getFileContent(repoName, filePath, commitSha);
 
         if (fileContent == null) {
             logger.error("Could not retrieve content for file: {}", filePath);
-            return;
+            return results;
         }
         CompilationUnit cu = StaticJavaParser.parse(fileContent);
 
@@ -94,10 +130,9 @@ public class AnalysisService {
                 result.setRuleId("PUBLIC_STATIC_NON_FINAL");
                 result.setMessage(message);
                 result.setDetectedAt(LocalDateTime.now());
-
-                analysisResultRepository.save(result);
-                logger.info("Saved analysis result to database.");
+                results.add(result);
             }
         });
+        return results;
     }
 }

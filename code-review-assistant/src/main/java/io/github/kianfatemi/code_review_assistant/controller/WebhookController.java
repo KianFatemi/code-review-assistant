@@ -30,10 +30,16 @@ public class WebhookController {
 
         logger.info("Received GitHub webhook event: {}", githubEvent);
 
-        if ("push".equals(githubEvent)) {
-            analysisService.analyzePushEvent(payload);
-        } else {
-            logger.info("Ignoring webhook event of type: {}", githubEvent);
+        switch (githubEvent) {
+            case "push":
+                analysisService.analyzePushEvent(payload);
+                break;
+            case "pull_request":
+                analysisService.analyzePullRequestEvent(payload);
+                break;
+            default:
+                logger.info("Ignoring webhook event of type {}", githubEvent);
+                break;
         }
 
         return ResponseEntity.ok("Webhook received.");

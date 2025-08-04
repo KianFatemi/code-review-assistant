@@ -22,7 +22,7 @@ public class GitHubService {
     @Value("${github.api.token}")
     private String apiToken;
 
-    private GitHub github;
+    public GitHub github;
 
     @PostConstruct
     private void init()
@@ -83,6 +83,19 @@ public class GitHubService {
         } catch (IOException e) {
             logger.error("Failed to get content for file '{}' in repo '{}'", filePath, repoName, e);
             return null;
+        }
+    }
+
+    public void postPullRequestComment(String repoName, int prNumber, String commitSha, String filePath, int line, String body) {
+        try {
+            GHRepository repo = github.getRepository(repoName);
+            GHPullRequest pr = repo.getPullRequest(prNumber);
+
+            pr.createReviewComment(body, commitSha, filePath, line);
+
+            logger.info("Successfully posted comment to PR #{} in repository {}", prNumber, repoName);
+        } catch (IOException e) {
+            logger.error("Failed to post comment to PR #{} in repository {}", prNumber, repoName, e);
         }
     }
 }
