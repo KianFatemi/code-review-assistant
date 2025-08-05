@@ -17,6 +17,7 @@
     <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         <h1 class="text-2xl font-bold text-gray-900">Code Review Assistant</h1>
         <div th:if="${username}">
+            <a href="/dashboard" class="ml-4 text-indigo-600 hover:text-indigo-800">Dashboard</a>
             <span class="text-gray-600" th:text="'Logged in as ' + ${username}"></span>
             <a href="/logout" class="ml-4 text-indigo-600 hover:text-indigo-800">Logout</a>
         </div>
